@@ -1,9 +1,8 @@
 'use strict';
 
 var _ = require('lodash');
-var $ = require('./util/preconditions');
+var $ = require('./util/preconditions'); var errors = require('./errors');
 var cashaddr = require('cashaddrjs');
-var errors = require('./errors');
 var Base58Check = require('./encoding/base58check');
 var Networks = require('./networks');
 var Hash = require('./crypto/hash');
@@ -105,7 +104,7 @@ Address.prototype._classifyArguments = function(data, network, type) {
     return Address._transformBuffer(data, network, type);
   } else if (data instanceof PublicKey) {
     return Address._transformPublicKey(data);
-  } else if (data instanceof Script) {
+  } else if (data instanceof _Script()) {
     return Address._transformScript(data, network);
   } else if (typeof(data) === 'string') {
     return Address._transformString(data, network, type, Address.DefaultFormat);
@@ -250,7 +249,7 @@ Address._transformPublicKey = function(pubkey) {
  * @private
  */
 Address._transformScript = function(script, network) {
-  $.checkArgument(script instanceof Script, 'script must be a Script instance');
+  $.checkArgument(script instanceof _Script(), 'script must be a Script instance');
   var info = script.getAddressInfo(network);
   if (!info) {
     throw new errors.Script.CantDeriveAddress(script);
@@ -272,7 +271,7 @@ Address._transformScript = function(script, network) {
  */
 Address.createMultisig = function(publicKeys, threshold, network) {
   network = network || publicKeys[0].network || Networks.defaultNetwork;
-  return Address.payingTo(Script.buildMultisigOut(publicKeys, threshold), network);
+  return Address.payingTo(_Script().buildMultisigOut(publicKeys, threshold), network);
 };
 
 /**
@@ -423,7 +422,7 @@ Address.fromScriptHash = function(hash, network) {
  */
 Address.payingTo = function(script, network) {
   $.checkArgument(script, 'script is required');
-  $.checkArgument(script instanceof Script, 'script must be instance of Script');
+  $.checkArgument(script instanceof _Script(), 'script must be instance of Script');
 
   return Address.fromScriptHash(Hash.sha256ripemd160(script.toBuffer()), network);
 };
@@ -441,7 +440,7 @@ Address.payingTo = function(script, network) {
  * @returns {Address} A new valid and frozen instance of an Address
  */
 Address.fromScript = function(script, network) {
-  $.checkArgument(script instanceof Script, 'script must be a Script instance');
+  $.checkArgument(script instanceof _Script(), 'script must be a Script instance');
   var info = Address._transformScript(script, network);
   return new Address(info.hashBuffer, network, info.type);
 };
@@ -638,4 +637,13 @@ Address.prototype.inspect = function() {
 
 module.exports = Address;
 
-var Script = require('./script');
+var _Script = (function () {
+  var Script;
+  return function lazilyGetScript(){
+    if(Script){
+      return Script
+    }
+    Script = require('./script');
+    return Script
+  }
+})()
